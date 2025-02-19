@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style1.css') }}">
+
+    <title>Estudiantes</title>
+</head>
+<body>
+    <h2>Mis Hijos</h2>
+<table>
+    <tr>
+        <th>Nombre</th>
+        <th>Curso</th>
+        <th>Acción</th>
+    </tr>
+    {% for hijo in hijos %}
+    <tr>
+        <td>{{ hijo.nombre }} {{ hijo.ci }}</td>
+        <td>{{ hijo.curso }}</td>
+        <td><a href="{{ url_for('reporte_asistencia', id_estudiante=hijo.id_estudiante) }}">Ver Reporte</a></td>
+    </tr>
+    {% endfor %}
+</table>
+</body>
+</html>
+

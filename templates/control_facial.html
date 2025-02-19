@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styleAgregarEstu.css') }}">
+    <title>Control de Asistencia Facial</title>
+</head>
+<body>
+    <header>
+        <h1>Control de Asistencia</h1>
+        <p>Curso: {{ curso }}</p>
+        <p>Materia: {{ materia }}</p>
+    </header>
+    <main>
+        <div>
+            <h2>Reconocimiento Facial en Tiempo Real</h2>
+            <!--<img src="/video_feed" alt="Transmisión de Video">-->
+            <!--<img src="{{ url_for('video_feed') }}" alt="Video Stream">-->
+
+            <!--<h1>Control de Asistencia</h1>-->
+            <!--<img src="{{ url_for('video_feed', id_materia=8) }}" alt="Video en vivo" style="border: 2px solid rgb(5, 247, 97);">-->
+            <!--<img src="{{ url_for('video_feed') }}" alt="Video en vivo" style="border: 2px solid rgb(5, 247, 97);">-->
+            <img id="videoStream" src="" alt="Video en vivo" style="border: 2px solid rgb(5, 247, 97);">
+
+
+        </body>
+
+        </div>
+        <!-- Sección de lista de estudiantes -->
+        <div class="list-section">
+            <h2>Lista de Estudiantes</h2>
+            <ul>
+                {% for estudiante in estudiantes %}
+                <li>{{ estudiante.nombre }} </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2024 Sistema de Control de Asistencia</p>
+    </footer>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Obtener el id_materia de la plantilla Flask
+            const idMateria = "{{ id_materia }}"; 
+            const idCurso = "{{ id_curso }}"; 
+            if (idMateria && idCurso) {
+                // Actualizar la URL del stream de video con el id_materia correcto
+                document.getElementById("videoStream").src = `/video_feed?id_materia=${idMateria}&id_curso=${idCurso}`;
+        } else {
+            console.error("Faltan parámetros en la plantilla: id_materia o id_curso");
+        }
+    });
+</script>
+    
+</body>
+</html>
