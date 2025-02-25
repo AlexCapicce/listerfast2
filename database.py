@@ -5,15 +5,20 @@ from datetime import datetime
 import requests
 from threading import Thread
 from diccionario import guardar_estudiantes_en_diccionario
+import os
 
 def conectar_bd():
     """Conecta a la base de datos MySQL y devuelve la conexión."""
     try:
         conexion = mysql.connector.connect(
-            host='localhost',
-            user='root',
-            password='',
-            database='asistencia1'
+            #host='localhost',
+            #user='root',
+            #password='',
+            #database='asistencia1'
+            host=os.getenv("MYSQL_HOST"),       # Obtiene el host de la variable de entorno
+            user=os.getenv("MYSQL_USER"),       # Obtiene el usuario
+            password=os.getenv("MYSQL_PASSWORD"), # Obtiene la contraseña
+            database=os.getenv("MYSQL_DB")      # Obtiene el nombre de la base de datos
         )
         return conexion
     except Error as e:

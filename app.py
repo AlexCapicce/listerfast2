@@ -26,17 +26,18 @@ import numpy as np
 import pandas as pd
 from fpdf import FPDF
 import io
-#url_api = "http://127.0.0.1:5000/api/estudiantes"
+#### PDF ####
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
+from flask import send_file, request
+#########
+##### EXCEL#####
+from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
+################
+
 app = Flask(__name__)
 app.secret_key = "clave_secreta"
-
-'''try:
-    response = requests.get(url_api)
-    response.raise_for_status()
-    print("Conexión exitosa a la API. Datos obtenidos:")
-    print(response.json())
-except requests.exceptions.RequestException as e:
-    print(f"Error al conectar con la API: {e}")'''
 
 #iniciar_sheduler()
 
@@ -49,39 +50,7 @@ def index():
     return render_template("login.html")
     #return render_template("index.html", cursos=cursos, materias=materias)
 
-'''@app.route("/login", methods=["POST"])
-def login():
-
-    username = request.form["username"]
-    password = request.form["password"]
-    
-    # Verificar credenciales del usuario
-    user = get_user_credentials(username)
-    
-    if user and user["password"] == password:
-        session["user"] = user["username"]
-        flash("Inicio de sesión exitoso", "success")
-        return redirect(url_for("dashboard"))
-    else:
-        flash("Usuario o contraseña incorrectos", "danger")
-        return redirect(url_for("index"))'''
-
-'''@app.route("/loginx", methods=['GET', 'POST'])
-def loginx():
-    username = request.form["username"]
-    password = request.form["password"]
-    
-    # Verificar credenciales del usuario
-    user = get_user_credentials(username)
-    
-    if user and user["password"] == password:
-        session["user"] = user["username"]
-        flash("Inicio de sesión exitoso", "success")
-        return redirect(url_for("dashboard"))
-    else:
-        flash("Usuario o contraseña incorrectos", "danger")
-        return redirect(url_for("index"))'''
-    
+ 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -103,7 +72,7 @@ def login():
         if usuario and check_password_hash(usuario['contrasena'], contrasena):
             session['usuario_id'] = usuario['id_usuario']
             session['rol'] = usuario['id_rol']
-            flash('Inicio de sesión exitoso', 'success')
+            #flash('Inicio de sesión exitoso', 'success')
 
             # Redirigir según el rol
             if usuario['id_rol'] == 1:  # Admin
@@ -132,7 +101,7 @@ def dashboard():
 @app.route("/logout")
 def logout():
     session.pop("user", None)
-    flash("Sesión cerrada exitosamente", "info")
+    #flash("Sesión cerrada exitosamente", "info")
     return redirect(url_for("index"))
 
 @app.route('/registro_asistencia', methods=['GET'])
@@ -142,18 +111,6 @@ def registro_asistencia():
     
     return render_template('registro_asistencia.html', cursos=cursos, materias=materias)
 
-'''@app.route("/exportar-pdf")
-def exportar_pdf():
-    try:
-
-        nombre_archivo = exportar_registro_pdf()
-        if nombre_archivo:
-            return send_file(nombre_archivo, as_attachment=True)
-    
-        
-    except Exception as e:
-        print(f"Error al generar el PDF: {e}")
-        return f"Error al generar el PDF: {e}", 500'''
 
 @app.route('/exportar-excel')
 def exportar_excel():
@@ -707,12 +664,28 @@ def padre_required(f):
 @app.route('/dashboard_admin')
 @admin_required  # Asegúrate de tener decorador para validar roles
 def dashboard_admin():
-    return render_template('dashboard_admin.html', user=session.get('usuario_id'))
+    conexion = conectar_bd()
+    cursor = conexion.cursor(dictionary=True)
+
+    cursor.execute("SELECT nombre FROM usuario WHERE id_usuario = %s", (session['usuario_id'],))
+    admin = cursor.fetchone()
+
+    cursor.close()
+    conexion.close()
+    return render_template('dashboard_admin.html', user=admin['nombre'])
 
 @app.route('/dashboard_docente')
 @docente_required  # Decorador para validar docente
 def dashboard_docente():
-    return render_template('dashboard_docente.html', user=session.get('usuario_id'))
+    conexion = conectar_bd()
+    cursor = conexion.cursor(dictionary=True)
+
+    cursor.execute("SELECT nombre FROM usuario WHERE id_usuario = %s", (session['usuario_id'],))
+    docente = cursor.fetchone()
+
+    cursor.close()
+    conexion.close()
+    return render_template('dashboard_docente.html', user=docente['nombre'])
 
 #@app.route('/dashboard_padre')
 
@@ -1042,6 +1015,12 @@ def dashboard_padre():
     
     padre_id = session['usuario_id']
 
+    conexion = conectar_bd()
+    cursor = conexion.cursor(dictionary=True)
+
+    cursor.execute("SELECT nombre FROM usuario WHERE id_usuario = %s", (session['usuario_id'],))
+    padre = cursor.fetchone()
+
     # Obtener hijos del padre autenticado
     padre_id = session['usuario_id']
     print("✅ Padre autenticado, ID:", padre_id)
@@ -1072,6 +1051,10 @@ def dashboard_padre():
                        WHERE e.id_estudiante = %s
         """, (hijo_seleccionado,))
         materias = cursor.fetchall()
+
+        
+
+        
         #materias = [{"id_materia": fila[0], "nombre_materia": fila[1]} for fila in cursor.fetchall()]
         print("📌 Materias obtenidas:", materias)
     if hijo_seleccionado and fecha_inicio and fecha_fin:
@@ -1093,7 +1076,10 @@ def dashboard_padre():
 
     conexion.close()
 
-    return render_template('dashboard_padre.html', user=session.get('usuario_id'), hijos=hijos, materias=materias, reporte=reporte)
+    return render_template('dashboard_padre.html', user=padre['nombre'], hijos=hijos, materias=materias, reporte=reporte, )
+
+
+
 
 @app.route('/descargar_reporte_pdf')
 def descargar_reporte_pdf():
@@ -1108,10 +1094,10 @@ def descargar_reporte_pdf():
     # Consulta para obtener los datos del reporte
     consulta = """
         SELECT r.fecha, r.hora, e.nombre, m.nombre_materia AS materia, r.estado 
-                FROM registro r 
-                JOIN materia m ON r.materia = m.id_materia
-                JOIN estudiante e ON r.estudiante=e.id_estudiante 
-                WHERE r.estudiante = %s AND r.fecha BETWEEN %s AND %s
+        FROM registro r 
+        JOIN materia m ON r.materia = m.id_materia
+        JOIN estudiante e ON r.estudiante = e.id_estudiante 
+        WHERE r.estudiante = %s AND r.fecha BETWEEN %s AND %s
     """
     parametros = [hijo_id, fecha_inicio, fecha_fin]
 
@@ -1128,16 +1114,41 @@ def descargar_reporte_pdf():
     pdf = canvas.Canvas(buffer, pagesize=letter)
     pdf.setTitle("Reporte de Asistencia")
 
-    pdf.drawString(200, 750, "Reporte de Asistencia")
+    # Encabezado del documento
+    pdf.setFont("Helvetica-Bold", 16)
+    pdf.drawCentredString(300, 750, "Reporte de Asistencia")
+
+    pdf.setFont("Helvetica", 12)
     pdf.drawString(100, 730, f"Hijo ID: {hijo_id}")
+    pdf.drawString(100, 715, f"Fecha: {fecha_inicio} - {fecha_fin}")
 
-    y = 700
-    pdf.drawString(100, y, "Nombre   |  Materia   |  Fecha       | Materia      | Estado")
-    pdf.line(100, y - 5, 500, y - 5)
-
+    # Datos en tabla
+    y = 690
+    table_data = [["Nombre", "Materia", "Fecha", "Hora", "Estado"]]
+    
     for fila in reporte:
-        y -= 20
-        pdf.drawString(100, y, f"{fila['nombre']} | {fila['materia']} | {fila['fecha']}  | {fila['hora']}  | {fila['estado']}")
+        table_data.append([
+            fila["nombre"], 
+            fila["materia"], 
+            fila["fecha"], 
+            fila["hora"], 
+            fila["estado"]
+        ])
+
+    # Crear tabla
+    table = Table(table_data, colWidths=[100, 100, 80, 60, 80])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+
+    table.wrapOn(pdf, 500, 400)
+    table.drawOn(pdf, 60, y - (len(reporte) * 20))
 
     pdf.showPage()
     pdf.save()
@@ -1159,10 +1170,10 @@ def descargar_reporte_excel():
     # Consulta para obtener los datos del reporte
     consulta = """
         SELECT r.fecha, r.hora, e.nombre, m.nombre_materia AS materia, r.estado 
-                FROM registro r 
-                JOIN materia m ON r.materia = m.id_materia
-                JOIN estudiante e ON r.estudiante=e.id_estudiante 
-                WHERE r.estudiante = %s AND r.fecha BETWEEN %s AND %s
+        FROM registro r 
+        JOIN materia m ON r.materia = m.id_materia
+        JOIN estudiante e ON r.estudiante = e.id_estudiante 
+        WHERE r.estudiante = %s AND r.fecha BETWEEN %s AND %s
     """
     parametros = [hijo_id, fecha_inicio, fecha_fin]
 
@@ -1174,17 +1185,34 @@ def descargar_reporte_excel():
     reporte = cursor.fetchall()
     conexion.close()
 
+    if not reporte:
+        return "No hay datos disponibles para el rango seleccionado.", 404
+
     # Convertir los datos a DataFrame
     df = pd.DataFrame(reporte)
-    
-    # Guardar en un archivo en memoria
+
+    # Crear un archivo en memoria
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name="Asistencia")
 
+        # Aplicar estilos al encabezado
+        workbook = writer.book
+        sheet = writer.sheets["Asistencia"]
+        header_fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+
+        for col_num, col_name in enumerate(df.columns, start=1):
+            cell = sheet.cell(row=1, column=col_num)
+            cell.font = Font(bold=True)
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+            column_letter = get_column_letter(col_num)
+            sheet.column_dimensions[column_letter].auto_size = True  # Ajuste automático del ancho
+
     output.seek(0)
 
     return send_file(output, as_attachment=True, download_name="reporte_asistencia.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 
 @app.route('/reporte_estudiante', methods=['GET', 'POST'])
 def reporte_estudiante():
