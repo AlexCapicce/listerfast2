@@ -10,20 +10,27 @@ import os
 def conectar_bd():
     """Conecta a la base de datos MySQL y devuelve la conexión."""
     try:
+        # Imprime las variables de entorno para depuración
+        print("Cargando variables de entorno...")
+        print(f"Host: {os.getenv('MYSQLHOST')}")
+        print(f"User: {os.getenv('MYSQLUSER')}")
+        print(f"Password: {os.getenv('MYSQLPASSWORD')}")
+        print(f"Database: {os.getenv('MYSQLDATABASE')}")
+        print(f"Port: {os.getenv('MYSQLPORT')}")
+        # Conecta a la base de datos
         conexion = mysql.connector.connect(
-            #host='localhost',
-            #user='root',
-            #password='',
-            #database='asistencia1'
-            host=os.getenv("MYSQLHOST"),       # Obtiene el host de la variable de entorno
-            user=os.getenv("MYSQLUSER"),       # Obtiene el usuario
-            password=os.getenv("MYSQLPASSWORD"), # Obtiene la contraseña
-            database=os.getenv("MYSQLDATABASE")      # Obtiene el nombre de la base de datos
+            host=os.getenv("MYSQLHOST"),       # Host de la base de datos
+            user=os.getenv("MYSQLUSER"),       # Usuario de la base de datos
+            password=os.getenv("MYSQLPASSWORD"), # Contraseña de la base de datos
+            database=os.getenv("MYSQLDATABASE"), # Nombre de la base de datos
+            port=os.getenv("MYSQLPORT", "44114")  # Puerto de la base de datos (usa 3306 como predeterminado)
         )
+        print("Conexión exitosa a la base de datos")
         return conexion
     except Error as e:
         print(f"Error al conectar a la base de datos: {e}")
         return None
+
 
 def obtener_estudiantes():
     """Obtiene la lista de estudiantes desde la base de datos."""
