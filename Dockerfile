@@ -17,12 +17,12 @@ EXPOSE 5000
 CMD ["python", "app.py"]
 
 RUN apt-get update && apt-get install -y \
-    default-libmysqlclient-dev \
     build-essential \
     pkg-config \
     python3-dev \
     libmariadb-dev
-
+    
+RUN apt-get update && apt-get install -y libmariadb-dev
     # Usa una imagen base con Python
 FROM python:3.12-slim
 
