@@ -15,10 +15,10 @@ def conectar_bd():
             #user='root',
             #password='',
             #database='asistencia1'
-            host=os.getenv("MYSQL_HOST"),       # Obtiene el host de la variable de entorno
-            user=os.getenv("MYSQL_USER"),       # Obtiene el usuario
-            password=os.getenv("MYSQL_PASSWORD"), # Obtiene la contraseña
-            database=os.getenv("MYSQL_DB")      # Obtiene el nombre de la base de datos
+            host=os.getenv("MYSQLHOST"),       # Obtiene el host de la variable de entorno
+            user=os.getenv("MYSQLUSER"),       # Obtiene el usuario
+            password=os.getenv("MYSQLPASSWORD"), # Obtiene la contraseña
+            database=os.getenv("MYSQLDATABASE")      # Obtiene el nombre de la base de datos
         )
         return conexion
     except Error as e:
