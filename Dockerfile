@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     python3-dev \
     libmariadb-dev
-    
+
 RUN apt-get update && apt-get install -y libmariadb-dev
     # Usa una imagen base con Python
 FROM python:3.12-slim
@@ -32,7 +32,6 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    libmysqlclient-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Crea y activa un entorno virtual
