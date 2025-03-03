@@ -7,16 +7,20 @@ from threading import Thread
 from diccionario import guardar_estudiantes_en_diccionario
 import os
 
+import os
+import mysql.connector
+from mysql.connector import Error
+
 def conectar_bd():
     try:
         print("Conectando a la base de datos...")
 
         host = os.getenv("MYSQLHOST", "mysql.railway.internal")
-        port = os.getenv("MYSQLPORT", "3306")  # Usa 3306 por defecto
+        port = os.getenv("MYSQLPORT", "3306")  
 
         if host != "mysql.railway.internal":
             print("➡️ Ejecutando en local, usando Public Network")
-            port = "44114"  # Si es local, usa el puerto público de Railway
+            port = "44114"  
         else:
             print("➡️ Ejecutando en Railway")
 
@@ -25,7 +29,8 @@ def conectar_bd():
             user=os.getenv("MYSQLUSER"),  
             password=os.getenv("MYSQLPASSWORD"),  
             database=os.getenv("MYSQLDATABASE"),  
-            port=port
+            port=port,
+            ssl_disabled=True  # Deshabilita SSL
         )
 
         if conexion.is_connected():
@@ -34,6 +39,7 @@ def conectar_bd():
     except Error as e:
         print(f"❌ Error al conectar a la base de datos: {e}")
         return None
+
     
 '''def conectar_bd():
     """Conecta a la base de datos MySQL y devuelve la conexión."""
