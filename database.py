@@ -8,29 +8,33 @@ from diccionario import guardar_estudiantes_en_diccionario
 import os
 
 def conectar_bd():
-    """Conecta a la base de datos MySQL y devuelve la conexión."""
     try:
-        # Imprime las variables de entorno para depuración
-        print("Cargando variables de entorno...")
-        print(f"Host: {os.getenv('MYSQLHOST')}")
-        print(f"User: {os.getenv('MYSQLUSER')}")
-        print(f"Password: {os.getenv('MYSQLPASSWORD')}")
-        print(f"Database: {os.getenv('MYSQLDATABASE')}")
-        print(f"Port: {os.getenv('MYSQLPORT')}")
-        # Conecta a la base de datos
-        conexion = mysql.connector.connect(
-            host=os.getenv("MYSQLHOST", "mysql.railway.internal"),       # Host de la base de datos
-            user=os.getenv("MYSQLUSER", "root"),       # Usuario de la base de datos
-            password=os.getenv("MYSQLPASSWORD"), # Contraseña de la base de datos
-            database=os.getenv("MYSQLDATABASE"), # Nombre de la base de datos
-            port=os.getenv("MYSQLPORT", "3306")  # Puerto de la base de datos (usa 3306 como predeterminado)
-        )
-        print("Conexión exitosa a la base de datos")
-        return conexion
-    except Error as e:
-        print(f"Error al conectar a la base de datos: {e}")
-        return None
+        print("Conectando a la base de datos...")
 
+        host = os.getenv("MYSQLHOST", "mysql.railway.internal")
+        port = os.getenv("MYSQLPORT", "3306")  # Usa 3306 por defecto
+
+        if host != "mysql.railway.internal":
+            print("➡️ Ejecutando en local, usando Public Network")
+            port = "44114"  # Si es local, usa el puerto público de Railway
+        else:
+            print("➡️ Ejecutando en Railway")
+
+        conexion = mysql.connector.connect(
+            host=host,  
+            user=os.getenv("MYSQLUSER"),  
+            password=os.getenv("MYSQLPASSWORD"),  
+            database=os.getenv("MYSQLDATABASE"),  
+            port=port
+        )
+
+        if conexion.is_connected():
+            print("✅ Conexión exitosa a la base de datos")
+            return conexion
+    except Error as e:
+        print(f"❌ Error al conectar a la base de datos: {e}")
+        return None
+    
 '''def conectar_bd():
     """Conecta a la base de datos MySQL y devuelve la conexión."""
     try:
