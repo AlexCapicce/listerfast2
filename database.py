@@ -15,15 +15,15 @@ def conectar_bd():
         print(f"Host: {os.getenv('MYSQLHOST')}")
         print(f"User: {os.getenv('MYSQLUSER')}")
         print(f"Password: {os.getenv('MYSQLPASSWORD')}")
-        print(f"Database: {os.getenv('MYSQLDATABASE')}")
+        print(f"Database: {os.getenv('MYSQL_DATABASE')}")
         print(f"Port: {os.getenv('MYSQLPORT')}")
         # Conecta a la base de datos
         conexion = mysql.connector.connect(
             host=os.getenv("MYSQLHOST"),       # Host de la base de datos
             user=os.getenv("MYSQLUSER"),       # Usuario de la base de datos
             password=os.getenv("MYSQLPASSWORD"), # Contraseña de la base de datos
-            database=os.getenv("MYSQLDATABASE"), # Nombre de la base de datos
-            port=os.getenv("MYSQLPORT", "44114")  # Puerto de la base de datos (usa 3306 como predeterminado)
+            database=os.getenv("MYSQL_DATABASE"), # Nombre de la base de datos
+            port=os.getenv("MYSQLPORT")  # Puerto de la base de datos (usa 3306 como predeterminado)
         )
         print("Conexión exitosa a la base de datos")
         return conexion
