@@ -7,7 +7,7 @@ from threading import Thread
 from diccionario import guardar_estudiantes_en_diccionario
 import os
 
-def conectar_bd():
+'''def conectar_bd():
     """Conecta a la base de datos MySQL y devuelve la conexión."""
     try:
         # Imprime las variables de entorno para depuración
@@ -29,8 +29,20 @@ def conectar_bd():
         return conexion
     except Error as e:
         print(f"Error al conectar a la base de datos: {e}")
+        return None'''
+def conectar_bd():
+    """Conecta a la base de datos MySQL y devuelve la conexión."""
+    try:
+        conexion = mysql.connector.connect(
+            host='localhost',
+            user='root',
+            password='',
+            database='asistencia1'
+        )
+        return conexion
+    except Error as e:
+        print(f"Error al conectar a la base de datos: {e}")
         return None
-
 
 def obtener_estudiantes():
     """Obtiene la lista de estudiantes desde la base de datos."""

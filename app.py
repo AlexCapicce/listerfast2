@@ -1837,6 +1837,92 @@ def reporte_asistencia(id_estudiante):
 
 ###############FIN DE REPORTE DE ASISTENCIA DE LOS HIJOS#########
 
+@app.route('/cuaderno_disciplinario')
+def cuaderno_disciplinario():
+    return render_template('cuaderno_disciplinario.html')
+
+@app.route('/buscar_estudiante')
+def buscar_estudiante():
+    nombre = request.args.get('q', '')
+    conn = conectar_bd()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id_estudiante, nombre, curso FROM estudiante WHERE nombre LIKE %s", (f"%{nombre}%",))
+    estudiantes = cursor.fetchall()
+    conn.close()
+    return jsonify(estudiantes)
+
+@app.route('/obtener_materias_por_estudiante/<int:id_estudiante>')
+def obtener_materias_por_estudiante(id_estudiante):
+    conn = conectar_bd()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+
+    # Obtener el curso del estudiante
+    cursor.execute("SELECT curso FROM estudiante WHERE id_estudiante = %s", (id_estudiante,))
+    estudiante = cursor.fetchone()
+
+    if not estudiante:
+        return jsonify({"error": "Estudiante no encontrado"}), 404
+
+    # Obtener las materias del curso del estudiante
+    cursor.execute("""
+        SELECT m.id_materia, m.nombre_materia 
+        FROM estudiante e 
+        JOIN curso_materia cm ON e.curso = cm.curso 
+        JOIN materia m ON cm.materia = m.id_materia 
+        WHERE e.id_estudiante = %s
+    """, (id_estudiante,))
+    materias = cursor.fetchall()
+
+    conn.close()
+    return jsonify(materias)
+
+@app.route('/guardar_incidencia', methods=['POST'])
+def guardar_incidencia():
+    data = request.json
+    conn = conectar_bd()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    cursor = conn.cursor()
+
+    # Insertar la incidencia con la materia
+    cursor.execute("""
+        INSERT INTO cuaderno (fecha, materia, descripcion, id_estudiante) 
+        VALUES (NOW(), %s, %s, %s)
+    """, (data['subject'], data['description'], data['student_id']))
+    
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Incidencia guardada correctamente"})
+
+@app.route('/historial_incidencias/<int:id_estudiante>')
+def historial_incidencias(id_estudiante):
+    conn = conectar_bd()
+    if not conn:
+        return jsonify({"error": "No se pudo conectar a la base de datos"}), 500
+
+    cursor = conn.cursor(dictionary=True)
+
+    # Obtener el historial de incidencias del estudiante
+    cursor.execute("""
+        SELECT c.fecha, m.nombre_materia AS materia, c.descripcion 
+        FROM cuaderno c
+        JOIN materia m ON c.materia = m.id_materia
+        WHERE c.id_estudiante = %s
+        ORDER BY c.fecha DESC
+    """, (id_estudiante,))
+    incidencias = cursor.fetchall()
+
+    conn.close()
+    return jsonify(incidencias)
+if __name__ == '__main__':
+    app.run(debug=True)
 if __name__ == '__main__':
     print("🚀 Servidor Flask y Scheduler de notificaciones iniciados...")
     app.run(debug=True)
