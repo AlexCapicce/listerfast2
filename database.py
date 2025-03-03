@@ -31,6 +31,7 @@ def conectar_bd():
             database=os.getenv("MYSQLDATABASE"),  
             port=port,
             #ssl_disabled=True  # Deshabilita SSL
+            auth_plugin='caching_sha2_password'  # 💡 Importante para MySQL 8+
         )
 
         if conexion.is_connected():
