@@ -30,7 +30,7 @@ def conectar_bd():
             password=os.getenv("MYSQLPASSWORD"),  
             database=os.getenv("MYSQLDATABASE"),  
             port=port,
-            ssl_disabled=True  # Deshabilita SSL
+            #ssl_disabled=True  # Deshabilita SSL
         )
 
         if conexion.is_connected():
