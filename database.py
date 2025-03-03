@@ -11,35 +11,37 @@ import os
 import mysql.connector
 from mysql.connector import Error
 
+import os
+import mysql.connector
+
+import os
+import mysql.connector
+
 def conectar_bd():
     try:
-        print("Conectando a la base de datos...")
+        host = os.getenv("MYSQLHOST", "centerbeam.proxy.rlwy.net")  # Usa el host externo por defecto
+        port = int(os.getenv("MYSQLPORT", "24244"))  # Usa el puerto externo por defecto
+        user = os.getenv("MYSQLUSER", "root")
+        password = os.getenv("MYSQLPASSWORD", "gdfXAVEjBiGuWIECQjBNKPgiupwMkzch")
+        database = os.getenv("MYSQLDATABASE", "railway")
 
-        host = os.getenv("MYSQLHOST", "mysql.railway.internal")
-        port = os.getenv("MYSQLPORT", "3306")  
-
-        if host != "mysql.railway.internal":
-            print("➡️ Ejecutando en local, usando Public Network")
-            port = "44114"  
-        else:
-            print("➡️ Ejecutando en Railway")
+        # Detectar si estamos en Railway
+        if host == "mysql.railway.internal":
+            port = 3306  # Si es Railway, usar el puerto 3306
 
         conexion = mysql.connector.connect(
-            host=host,  
-            user=os.getenv("MYSQLUSER"),  
-            password=os.getenv("MYSQLPASSWORD"),  
-            database=os.getenv("MYSQLDATABASE"),  
+            host=host,
             port=port,
-            #ssl_disabled=True  # Deshabilita SSL
-            auth_plugin='caching_sha2_password'  # 💡 Importante para MySQL 8+
+            user=user,
+            password=password,
+            database=database
         )
-
-        if conexion.is_connected():
-            print("✅ Conexión exitosa a la base de datos")
-            return conexion
-    except Error as e:
+        print("✅ Conexión exitosa a la base de datos")
+        return conexion
+    except mysql.connector.Error as e:
         print(f"❌ Error al conectar a la base de datos: {e}")
         return None
+
 
     
 '''def conectar_bd():
