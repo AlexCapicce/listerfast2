@@ -15,7 +15,7 @@ def conectar_bd():
             port=os.getenv("MYSQLPORT", "24244"),  
             user=os.getenv("MYSQLUSER", "root"),  
             password=os.getenv("MYSQLPASSWORD", "gdfXAVEjBiGuWIECQjBNKPgiupwMkzch"),  
-            database=os.getenv("MYSQLDATABASE", "railway")  
+            database=os.getenv("MYSQLDATABASE", "railway"),  
             auth_plugin="mysql_native_password"
         )
         print("✅ Conexión exitosa a la base de datos")
