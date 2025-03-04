@@ -1929,9 +1929,19 @@ def historial_incidencias(id_estudiante):
 
 import os
 
-if __name__ == "__main__":
+'''if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Obtiene el puerto de Railway
-    app.run(host="0.0.0.0", port=port)  # Asegura que Flask escuche en todos los puertos
+    app.run(host="0.0.0.0", port=port)  # Asegura que Flask escuche en todos los puertos'''
+
+if __name__ == "__main__":
+    if os.name == "nt":  # Windows
+        from waitress import serve
+        print("Ejecutando con Waitress en Windows...")
+        serve(app, host="0.0.0.0", port=5000)
+    else:  # Linux (Railway)
+        from gunicorn.app.wsgiapp import run
+        print("Ejecutando con Gunicorn en Railway...")
+        run()
 
 
 
