@@ -7,34 +7,15 @@ from threading import Thread
 from diccionario import guardar_estudiantes_en_diccionario
 import os
 
-import os
-import mysql.connector
-from mysql.connector import Error
-
-import os
-import mysql.connector
-
-import os
-import mysql.connector
-
 def conectar_bd():
+    """Conecta a la base de datos MySQL en Railway y devuelve la conexión."""
     try:
-        host = os.getenv("MYSQLHOST", "centerbeam.proxy.rlwy.net")  # Usa el host externo por defecto
-        port = int(os.getenv("MYSQLPORT", "24244"))  # Usa el puerto externo por defecto
-        user = os.getenv("MYSQLUSER", "root")
-        password = os.getenv("MYSQLPASSWORD", "gdfXAVEjBiGuWIECQjBNKPgiupwMkzch")
-        database = os.getenv("MYSQLDATABASE", "railway")
-
-        # Detectar si estamos en Railway
-        if host == "mysql.railway.internal":
-            port = 3306  # Si es Railway, usar el puerto 3306
-
         conexion = mysql.connector.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database=database
+            host=os.getenv("MYSQLHOST", "centerbeam.proxy.rlwy.net"),  
+            port=os.getenv("MYSQLPORT", "24244"),  
+            user=os.getenv("MYSQLUSER", "root"),  
+            password=os.getenv("MYSQLPASSWORD", "gdfXAVEjBiGuWIECQjBNKPgiupwMkzch"),  
+            database=os.getenv("MYSQLDATABASE", "railway")  
         )
         print("✅ Conexión exitosa a la base de datos")
         return conexion
