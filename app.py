@@ -1925,7 +1925,7 @@ def historial_incidencias(id_estudiante):
 import os
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 24244))  # Obtiene el puerto de Railway
+    port = int(os.environ.get("PORT", 5000))  # Obtiene el puerto de Railway
     app.run(host="0.0.0.0", port=port)  # Asegura que Flask escuche en todos los puertos
 
 
