@@ -1921,9 +1921,13 @@ def historial_incidencias(id_estudiante):
 
     conn.close()
     return jsonify(incidencias)
-if __name__ == '__main__':
-    app.run(debug=True)
-if __name__ == '__main__':
-    print("🚀 Servidor Flask y Scheduler de notificaciones iniciados...")
-    app.run(debug=True)
+
+import os
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 24244))  # Obtiene el puerto de Railway
+    app.run(host="0.0.0.0", port=port)  # Asegura que Flask escuche en todos los puertos
+
+
+
 
