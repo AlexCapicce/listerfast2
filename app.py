@@ -48,7 +48,7 @@ app.secret_key = "clave_secreta"
 @app.route("/")
 def index():
     return render_template("login.html")
-    #return render_template("index.html", cursos=cursos, materias=materias)
+    
 
  
 @app.route('/login', methods=['GET', 'POST'])
@@ -56,9 +56,14 @@ def login():
     if request.method == 'POST':
         correo = request.form['correo']
         contrasena = request.form['contrasena']
-        hash_contrasena = generate_password_hash(contrasena)
-        
+        #hash_contrasena = generate_password_hash(contrasena)
+
+        # Conectar a la base de datos
         conexion=conectar_bd()
+        if not conexion:
+            flash("Error de conexión a la base de datos", "danger")
+            return redirect(url_for('login'))
+        
         cursor = conexion.cursor(dictionary=True)
 
         #hash_contrasena = generate_password_hash(contrasena1)
