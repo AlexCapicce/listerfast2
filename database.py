@@ -17,7 +17,7 @@ def conectar_bd():
             password=os.getenv("MYSQLPASSWORD", "gdfXAVEjBiGuWIECQjBNKPgiupwMkzch"),  
             database=os.getenv("MYSQLDATABASE", "railway"),  
             #Obligar que use esto
-            auth_plugin="mysql_native_password"
+            auth_plugin="caching_sha2_password"
         )
         print("✅ Conexión exitosa a la base de datos")
         return conexion
