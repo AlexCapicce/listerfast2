@@ -71,19 +71,32 @@
             const video = document.getElementById("videoStream");
             const canvas = document.getElementById("canvas");
             const context = canvas.getContext("2d");
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
             
+            if (!isMobile) {
+                // Para PC: Usar getUserMedia
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(stream => {
                     video.srcObject = stream;
                     setInterval(capturarYEnviarFrame, 1000);  // Enviar cada 1 seg
                 })
                 .catch(error => console.error("Error accediendo a la cámara:", error));
-        
+            } else {
+            // Para móvil: Tomar capturas y enviarlas
+            setInterval(capturarYEnviarFrame, 1000);
+        }
             function capturarYEnviarFrame() {
+            if (!isMobile) {
+                    // Captura desde la webcam en PC
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
+            } else {
+                // Captura desde la cámara del móvil
+                canvas.width = 480;
+                canvas.height = 640;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
                 canvas.toBlob(blob => {
                     const formData = new FormData();
                     formData.append("frame", blob, "frame.jpg");
