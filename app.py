@@ -579,6 +579,66 @@ def control_asistencia(curso_id, materia_id):
 
     return render_template('control_asistencia.html', curso=curso_id, materia=materia, estudiantes=estudiantes)'''
 
+############# PARA VIDEO DE CAMARA DE MOVIL #################
+@app.route('/upload_frame', methods=['POST'])
+def upload_frame():
+    """Recibe un frame del móvil y procesa el reconocimiento facial."""
+    try:
+        id_materia = request.args.get('id_materia', type=int)
+        id_curso = request.args.get('id_curso', type=int)
+        
+        if 'frame' not in request.files:
+            return jsonify({"mensaje": "No se recibió imagen"}), 400
+
+        frame = request.files['frame'].read()
+        npimg = np.frombuffer(frame, np.uint8)
+        frame = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+
+        # Llamar a la función de reconocimiento facial
+        resultado = procesar_frame(frame, id_materia, id_curso)
+
+        return jsonify({"mensaje": "Frame procesado", "resultado": resultado})
+
+    except Exception as e:
+        return jsonify({"mensaje": f"Error: {str(e)}"}), 500
+############# FIN - PARA VIDEO DE CAMARA DE MOVIL #################
+
+def procesar_frame(frame, id_materia, id_curso):
+    """Procesa un frame para hacer reconocimiento facial."""
+    estudiantes_diccionario = guardar_estudiantes_en_diccionario()
+    materias_diccionario = guardar_materias_en_diccionario()
+
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    face_locations = face_recognition.face_locations(rgb_frame, model="hog")
+    face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
+    asistencia_registrada = {}
+
+    for face_encoding in face_encodings:
+        matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+        name = "Desconocido"
+
+        if True in matches:
+            first_match_index = matches.index(True)
+            name = known_face_names[first_match_index]
+
+            ahora = datetime.now().date()
+            estudiante = next((est for est in estudiantes_diccionario.values() if est['nombre'] == name), None)
+            materia = materias_diccionario.get(id_materia)
+
+            if estudiante and materia:
+                id_estudiante = estudiante['id_estudiante']
+                curso = estudiante['curso']
+                id_materia_seleccionada = materia['id_materia']
+
+                if not verificar_asistencia_existente(id_estudiante, id_curso, id_materia_seleccionada, ahora):
+                    guardar_asistencia(id_estudiante, id_curso, id_materia_seleccionada)
+                    asistencia_registrada[name] = ahora
+                    print(f"Asistencia registrada para {name} ({id_curso} - {id_materia_seleccionada})")
+                else:
+                    print(f"Asistencia ya registrada para {name}")
+
+    return asistencia_registrada
 
 @app.route('/video_feed')
 def video_feed():

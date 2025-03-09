@@ -21,7 +21,10 @@
 
             <div class="text-center">
                 <h3 class="mt-4">Reconocimiento Facial en Tiempo Real</h3>
-                <img id="videoStream" src="" class="img-fluid border border-success rounded" alt="Video en vivo">
+                <!--<img id="videoStream" src="" class="img-fluid border border-success rounded" alt="Video en vivo">-->
+                <video id="videoStream" autoplay playsinline class="img-fluid border border-success rounded"></video>
+                <canvas id="canvas" style="display: none;"></canvas>
+
             </div>
 
             <!-- Sección de lista de estudiantes en tabla -->
@@ -63,6 +66,40 @@
             }
         });
     </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const video = document.getElementById("videoStream");
+            const canvas = document.getElementById("canvas");
+            const context = canvas.getContext("2d");
+            
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    setInterval(capturarYEnviarFrame, 1000);  // Enviar cada 1 seg
+                })
+                .catch(error => console.error("Error accediendo a la cámara:", error));
+        
+            function capturarYEnviarFrame() {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                canvas.toBlob(blob => {
+                    const formData = new FormData();
+                    formData.append("frame", blob, "frame.jpg");
+                    
+                    fetch("/upload_frame?id_materia={{ id_materia }}&id_curso={{ id_curso }}", {
+                        method: "POST",
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => console.log(data))
+                    .catch(error => console.error("Error enviando el frame:", error));
+                }, "image/jpeg");
+            }
+        });
+        </script>
+        
 
 </body>
 </html>
