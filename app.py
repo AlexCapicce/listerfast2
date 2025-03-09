@@ -4,6 +4,7 @@ from flask import Flask, Response, render_template, request, redirect, url_for, 
 #from database import get_user_credentials
 from database import *
 from notificar_ausencias import *
+from datetime import datetime
 
 #import pickle
 import threading
@@ -412,6 +413,151 @@ def control_asistencia():
 
     except Exception as e:
         return f"Error al procesar la solicitud: {str(e)}", 500
+    
+@app.route('/control_asistencia_m', methods=['POST'])
+def control_asistencia_m():
+    """Maneja el control de asistencia basado en POST."""
+    try:
+        # Obtener datos enviados desde el formulario o petición POST
+        id_curso = request.form.get('curso')  # Datos enviados desde el frontend
+        id_materia = request.form.get('materia')
+        print(f"Datos recibidoooos: id_curso={id_curso}, id_materia={id_materia}")  # 👀 Debug
+        # Validar que se recibieron los datos
+        if not id_curso or not id_materia:
+            return "Error, Faltan datos de curso o materia", 400
+
+        conexion = conectar_bd()
+        cursor = conexion.cursor(dictionary=True)
+
+        # Obtener nombre del curso
+        cursor.execute("SELECT nombre_curso FROM curso WHERE id_curso = %s", (id_curso,))
+        curso_data = cursor.fetchone()
+        if not curso_data:
+            return "Error: Curso no encontrado", 404
+        curso = curso_data["nombre_curso"]
+
+        #curso = cursor.fetchone()["nombre_curso"]
+
+        # Obtener nombre de la materia
+        cursor.execute("SELECT nombre_materia FROM materia WHERE id_materia = %s", (id_materia,))
+        materia_data = cursor.fetchone()
+        if not materia_data:
+            return "Error: Materia no encontrada", 404
+        materia = materia_data["nombre_materia"]
+
+        # Obtener lista de estudiantes
+        cursor.execute("""
+            SELECT id_estudiante, nombre
+            FROM estudiante 
+            WHERE curso = %s
+        """, (id_curso,))
+        estudiantes = cursor.fetchall()
+
+        cursor.close()
+        conexion.close()
+
+        # Renderizar la plantilla con los datos
+        return render_template("control_manual.html", curso=curso, materia=materia, estudiantes=estudiantes, id_materia=id_materia, id_curso=id_curso)
+
+    except Exception as e:
+        return f"Error al procesar la solicitud: {str(e)}", 500
+
+# Ruta para mostrar la página de registro de asistencia manual
+@app.route("/registro_asistencia1")
+def registro_asistencia_manual():
+    conexion = conectar_bd()
+    cursor = conexion.cursor(dictionary=True)
+
+    cursor.execute("SELECT id_estudiante, nombre FROM estudiante")
+    estudiantes = cursor.fetchall()
+
+    cursos = obtener_cursos()  # Función para obtener cursos desde la base de datos
+    materias = obtener_materias1()  # Función para obtener materias desde la base de datos
+
+    conexion.close()
+    return render_template("registro_asistencia_manual.html", estudiantes=estudiantes, cursos=cursos, materias=materias)
+
+#@app.route("/registro_asistencia1/<int:curso_id>/<int:materia_id>")
+'''@app.route("/registro_asistencia1")
+def registro_asistencia_manual(curso_id, materia_id):
+    conexion = conectar_bd()
+    cursor = conexion.cursor(dictionary=True)
+
+    cursor.execute("SELECT id_estudiante, nombre FROM estudiante WHERE curso = %s", (curso_id,))
+    estudiantes = cursor.fetchall()
+
+    cursor.execute("SELECT nombre_curso FROM curso WHERE id = %s", (curso_id,))
+    curso = cursor.fetchone()["nombre"]
+
+    cursor.execute("SELECT nombre_materia FROM materia WHERE id = %s", (materia_id,))
+    materia = cursor.fetchone()["nombre"]
+
+    conexion.close()
+    return render_template("registro_asistencia_manual.html", estudiantes=estudiantes, curso=curso, materia=materia, curso_id=curso_id, materia_id=materia_id)'''
+
+# Ruta para guardar la asistencia en la base de datos
+@app.route("/guardar_asistencia_manual", methods=["POST"])
+def guardar_asistencia_manual():
+    try:
+        datos = request.json
+        estudiantes_presentes = datos.get("estudiantes", [])
+        id_materia = datos.get("id_materia")
+        id_curso = datos.get("id_curso")
+        fecha_actual = datetime.now().strftime("%Y-%m-%d")  # Solo la fecha sin la hora
+        hora_actual = datetime.now().strftime("%H:%M:%S")
+
+        print(f"Recibido: id_curso={id_curso}, id_materia={id_materia}, estudiantes={estudiantes_presentes}")
+
+        if not estudiantes_presentes:
+            return jsonify({"mensaje": "No se seleccionó ningún estudiante"}), 400
+
+        conexion = conectar_bd()
+        cursor = conexion.cursor()
+
+        for estudiante_id in estudiantes_presentes:
+            # Verificar si el estudiante ya tiene asistencia registrada en la misma fecha, curso y materia
+            cursor.execute("""
+                SELECT COUNT(*) FROM registro 
+                WHERE estudiante = %s AND curso = %s AND materia = %s AND fecha = %s
+            """, (estudiante_id, id_curso, id_materia, fecha_actual))
+            
+            resultado = cursor.fetchone()
+
+            if resultado[0] == 0:  # Si no hay registros previos, se inserta la asistencia
+                cursor.execute("""
+                    INSERT INTO registro (estudiante, curso, materia, fecha, hora, estado) 
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (estudiante_id, id_curso, id_materia, fecha_actual, hora_actual, "Presente"))
+
+        conexion.commit()
+        conexion.close()
+
+        return jsonify({"mensaje": "Asistencia guardada correctamente"}), 200
+
+    except Exception as e:
+        return jsonify({"mensaje": f"Error al guardar asistencia: {str(e)}"}), 500
+
+
+    
+@app.route("/obtener_materiasx/<int:curso_id>")
+def obtener_materiasx(curso_id):
+    with conectar_bd() as conexion:
+        with conexion.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT m.id_materia, m.nombre_materia FROM curso_materia cm INNER JOIN materia m ON cm.materia = m.id_materia WHERE cm.curso = %s", (curso_id,))
+            resultados2 = cursor.fetchall()
+
+            materias = [{"id_materia": fila[0], "nombre_materia": fila[1]} for fila in resultados2]
+
+    return jsonify({"materias": materias})
+
+@app.route("/obtener_estudiantesx/<int:curso_id>")
+def obtener_estudiantesx(curso_id):
+    with conectar_bd() as conexion:
+        with conexion.cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT id_estudiante, nombre FROM estudiante WHERE curso = %s", (curso_id,))
+            estudiantes = cursor.fetchall()
+
+    return jsonify({"estudiantes": estudiantes})
 
 '''@app.route('/control_asistencia/<int:curso_id>/<int:materia_id>')
 def control_asistencia(curso_id, materia_id):
