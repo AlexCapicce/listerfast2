@@ -66,6 +66,7 @@
             }
 
             function capturarYEnviarFrame() {
+            if (!isMobile) {
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -79,10 +80,16 @@
                         body: formData
                     })
                     .then(response => response.json())
-                    .then(data => console.log(data))
+                    .then(data => {
+                        if (data.imagen) {
+                            document.getElementById("videoStream").src = "data:image/jpeg;base64," + data.imagen;
+                        }
+                    })
                     .catch(error => console.error("Error enviando el frame:", error));
-                }, "image/jpeg");
+                    }, "image/jpeg");
+                }
             }
+
 
             startCamera();
         });

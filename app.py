@@ -596,9 +596,15 @@ def upload_frame():
 
         # Lar alam la función de reconocimiento facial
          # Procesar la imagen
-        resultado = procesar_frame(frame, id_materia, id_curso)
+        #resultado = procesar_frame(frame, id_materia, id_curso)
+        # Procesar el frame (detectar rostros y registrar asistencia)
+        asistencia_registrada, frame_procesado = procesar_frame(frame, id_materia, id_curso)
 
-        return jsonify({"mensaje": "Frame procesado", "resultado": resultado})
+        # Codificar la imagen procesada a base64 para enviarla al frontend
+        _, buffer = cv2.imencode('.jpg', frame_procesado)
+        imagen_base64 = base64.b64encode(buffer).decode('utf-8')
+
+        return jsonify({"mensaje": "Frame procesado", "asistencia": asistencia_registrada, "imagen": imagen_base64})
 
     except Exception as e:
         return jsonify({"mensaje": f"Error: {str(e)}"}), 500
@@ -608,14 +614,13 @@ def procesar_frame(frame, id_materia, id_curso):
     estudiantes_diccionario = guardar_estudiantes_en_diccionario()
     materias_diccionario = guardar_materias_en_diccionario()
 
-    # Convertir a RGB
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     face_locations = face_recognition.face_locations(rgb_frame, model="hog")
     face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
     asistencia_registrada = {}
 
-    for face_encoding in face_encodings:
+    for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
         matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
         name = "Desconocido"
 
@@ -635,11 +640,13 @@ def procesar_frame(frame, id_materia, id_curso):
                 if not verificar_asistencia_existente(id_estudiante, id_curso, id_materia_seleccionada, ahora):
                     guardar_asistencia(id_estudiante, id_curso, id_materia_seleccionada)
                     asistencia_registrada[name] = ahora
-                    print(f"Asistencia registrada para {name} ({id_curso} - {id_materia_seleccionada})")
-                else:
-                    print(f"Asistencia ya registrada para {name}")
 
-    return asistencia_registrada
+        # Dibujar rectángulo y nombre en la imagen
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+        cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+
+    return asistencia_registrada, frame  # Devuelve la imagen modificada
+
 
 @app.route('/video_feed')
 def video_feed():
