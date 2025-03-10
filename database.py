@@ -2,6 +2,7 @@ import mysql.connector
 from mysql.connector import Error
 import pymysql
 from datetime import datetime
+import pytz
 import requests
 from threading import Thread
 from diccionario import guardar_estudiantes_en_diccionario
@@ -204,7 +205,12 @@ def guardar_asistencia(id_estudiante, id_curso, materia):
     cursor = connection.cursor()
     est=obtener_estudiantes()
     # Obtener fecha y hora actuales
-    ahora = datetime.now()
+    #ahora = datetime.now()
+
+    # Configurar la zona horaria de Bolivia (UTC-4)
+    tz_bolivia = pytz.timezone('America/La_Paz')
+    ahora = datetime.now(tz_bolivia)  # Obtener la hora exacta de Bolivia
+    
     fecha = ahora.date()
     hora = ahora.time()
      

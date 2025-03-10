@@ -6,7 +6,7 @@ from database import *
 from notificar_ausencias import *
 from datetime import datetime
 import base64
-
+import pytz
 #import pickle
 import threading
 from recognition import FaceRecognition
