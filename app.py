@@ -594,7 +594,8 @@ def upload_frame():
         npimg = np.frombuffer(frame, np.uint8)
         frame = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
 
-        # Llamar a la función de reconocimiento facial
+        # Lar alam la función de reconocimiento facial
+         # Procesar la imagen
         resultado = procesar_frame(frame, id_materia, id_curso)
 
         return jsonify({"mensaje": "Frame procesado", "resultado": resultado})
@@ -602,12 +603,12 @@ def upload_frame():
     except Exception as e:
         return jsonify({"mensaje": f"Error: {str(e)}"}), 500
 ############# FIN - PARA VIDEO DE CAMARA DE MOVIL #################
-
 def procesar_frame(frame, id_materia, id_curso):
     """Procesa un frame para hacer reconocimiento facial."""
     estudiantes_diccionario = guardar_estudiantes_en_diccionario()
     materias_diccionario = guardar_materias_en_diccionario()
 
+    # Convertir a RGB
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     face_locations = face_recognition.face_locations(rgb_frame, model="hog")
     face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
