@@ -5,6 +5,7 @@ from flask import Flask, Response, render_template, request, redirect, url_for, 
 from database import *
 from notificar_ausencias import *
 from datetime import datetime
+import base64
 
 #import pickle
 import threading
