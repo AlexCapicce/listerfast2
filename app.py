@@ -610,17 +610,25 @@ def upload_frame():
     except Exception as e:
         return jsonify({"mensaje": f"Error: {str(e)}"}), 500
 ############# FIN - PARA VIDEO DE CAMARA DE MOVIL #################
+
 def procesar_frame(frame, id_materia, id_curso):
-    """Procesa un frame para hacer reconocimiento facial."""
+    """Procesa un frame para hacer reconocimiento facial y dibujar rectángulos."""
     estudiantes_diccionario = guardar_estudiantes_en_diccionario()
     materias_diccionario = guardar_materias_en_diccionario()
 
+    # Convertir la imagen a RGB (face_recognition trabaja mejor en RGB)
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # Detectar rostros en la imagen
     face_locations = face_recognition.face_locations(rgb_frame, model="hog")
     face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
     asistencia_registrada = {}
 
+    if not face_locations:
+        print("No se detectaron rostros en el frame.")
+
+    # Recorrer cada rostro detectado
     for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
         matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
         name = "Desconocido"
@@ -642,11 +650,12 @@ def procesar_frame(frame, id_materia, id_curso):
                     guardar_asistencia(id_estudiante, id_curso, id_materia_seleccionada)
                     asistencia_registrada[name] = ahora
 
-        # Dibujar rectángulo y nombre en la imagen
+        # Dibujar el rectángulo y el nombre en la imagen
         cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
         cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
 
-    return asistencia_registrada, frame  # Devuelve la imagen modificada
+    return asistencia_registrada, frame  # Devolver el frame modificado
+
 
 
 @app.route('/video_feed')
