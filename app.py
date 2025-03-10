@@ -619,17 +619,16 @@ def procesar_frame(frame, id_materia, id_curso):
     face_locations = face_recognition.face_locations(rgb_frame, model="hog")
     face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
-    print(f"🔍 Rostros detectados: {len(face_locations)}")  # DEBUG
     asistencia_registrada = {}
 
     for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
         matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
         name = "Desconocido"
-        print(f"🔎 Coincidencias encontradas: {matches}")  # DEBUG
+
         if True in matches:
             first_match_index = matches.index(True)
             name = known_face_names[first_match_index]
-            print(f"✅ Estudiante reconocido: {name}")  # DEBUG
+
             ahora = datetime.now().date()
             estudiante = next((est for est in estudiantes_diccionario.values() if est['nombre'] == name), None)
             materia = materias_diccionario.get(id_materia)
@@ -642,7 +641,7 @@ def procesar_frame(frame, id_materia, id_curso):
                 if not verificar_asistencia_existente(id_estudiante, id_curso, id_materia_seleccionada, ahora):
                     guardar_asistencia(id_estudiante, id_curso, id_materia_seleccionada)
                     asistencia_registrada[name] = ahora
-                    print(f"📌 Asistencia registrada: {name} - {ahora}")  # DEBUG
+
         # Dibujar rectángulo y nombre en la imagen
         cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
         cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)

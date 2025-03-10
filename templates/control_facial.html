@@ -7,7 +7,8 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
+    <!-- Enlace al archivo CSS externo -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styleF.css') }}">
 </head>
 <body>
@@ -20,10 +21,13 @@
 
             <div class="text-center">
                 <h3 class="mt-4">Reconocimiento Facial en Tiempo Real</h3>
+                <!--<img id="videoStream" src="" class="img-fluid border border-success rounded" alt="Video en vivo">-->
                 <video id="videoStream" autoplay playsinline class="img-fluid border border-success rounded"></video>
                 <canvas id="canvas" style="display: none;"></canvas>
+
             </div>
 
+            <!-- Sección de lista de estudiantes en tabla -->
             <div class="table-responsive mt-4">
                 <h3 class="text-center text-secondary">Lista de Estudiantes</h3>
                 <table class="table table-striped table-hover text-center">
@@ -51,49 +55,51 @@
     </footer>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const video = document.getElementById("videoStream");
-            const canvas = document.getElementById("canvas");
-            const context = canvas.getContext("2d");
+        document.addEventListener("DOMContentLoaded", function() {
+            const idMateria = "{{ id_materia }}"; 
+            const idCurso = "{{ id_curso }}"; 
 
-            function startCamera() {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-                    .then(stream => {
-                        video.srcObject = stream;
-                        setInterval(capturarYEnviarFrame, 2000); // Captura cada 2 segundos
-                    })
-                    .catch(error => console.error("Error accediendo a la cámara:", error));
+            if (idMateria && idCurso) {
+                document.getElementById("videoStream").src = `/video_feed?id_materia=${idMateria}&id_curso=${idCurso}`;
+            } else {
+                console.error("Faltan parámetros en la plantilla: id_materia o id_curso");
             }
-
-            function capturarYEnviarFrame() {
-            if (!isMobile) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                canvas.toBlob(blob => {
-                    const formData = new FormData();
-                    formData.append("frame", blob, "frame.jpg");
-
-                    fetch("/upload_frame?id_materia={{ id_materia }}&id_curso={{ id_curso }}", {
-                        method: "POST",
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.imagen) {
-                            document.getElementById("videoStream").src = "data:image/jpeg;base64," + data.imagen;
-                        }
-                    })
-                    .catch(error => console.error("Error enviando el frame:", error));
-                    }, "image/jpeg");
-                }
-            }
-
-
-            startCamera();
         });
     </script>
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+    const video = document.getElementById("videoStream");
+    const canvas = document.getElementById("canvas");
+    const context = canvas.getContext("2d");
+    
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            video.srcObject = stream;
+            setInterval(capturarYEnviarFrame, 1000);  // Enviar cada 1 seg
+        })
+        .catch(error => console.error("Error accediendo a la cámara:", error));
+
+    function capturarYEnviarFrame() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob(blob => {
+            const formData = new FormData();
+            formData.append("frame", blob, "frame.jpg");
+            
+            fetch("/upload_frame?id_materia={{ id_materia }}&id_curso={{ id_curso }}", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => console.log(data))
+            .catch(error => console.error("Error enviando el frame:", error));
+        }, "image/jpeg");
+    }
+});
+</script>
+
 
 </body>
 </html>
