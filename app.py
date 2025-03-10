@@ -610,25 +610,33 @@ def upload_frame():
     except Exception as e:
         return jsonify({"mensaje": f"Error: {str(e)}"}), 500
 ############# FIN - PARA VIDEO DE CAMARA DE MOVIL #################
+import cv2
+import face_recognition
+from datetime import datetime
 
 def procesar_frame(frame, id_materia, id_curso):
-    """Procesa un frame para hacer reconocimiento facial y dibujar rectángulos."""
-    estudiantes_diccionario = guardar_estudiantes_en_diccionario()
-    materias_diccionario = guardar_materias_en_diccionario()
-
-    # Convertir la imagen a RGB (face_recognition trabaja mejor en RGB)
+    """Procesa un frame para hacer reconocimiento facial y dibujar rectángulos en los rostros detectados."""
+    
+    # Convertir el frame a RGB (face_recognition trabaja mejor con RGB)
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    # Detectar rostros en la imagen
+    # Detectar los rostros en la imagen
     face_locations = face_recognition.face_locations(rgb_frame, model="hog")
+
+    # Si no se detectan rostros, imprimir un mensaje y devolver el frame sin modificar
+    if not face_locations:
+        print("No se detectaron rostros en el frame.")
+        return {}, frame
+
+    # Obtener los encodings de los rostros detectados
     face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
+    if not face_encodings:
+        print("Se detectaron rostros, pero no se pudieron codificar.")
+        return {}, frame
 
     asistencia_registrada = {}
 
-    if not face_locations:
-        print("No se detectaron rostros en el frame.")
-
-    # Recorrer cada rostro detectado
     for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
         matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
         name = "Desconocido"
@@ -636,25 +644,32 @@ def procesar_frame(frame, id_materia, id_curso):
         if True in matches:
             first_match_index = matches.index(True)
             name = known_face_names[first_match_index]
-
-            ahora = datetime.now().date()
-            estudiante = next((est for est in estudiantes_diccionario.values() if est['nombre'] == name), None)
-            materia = materias_diccionario.get(id_materia)
+            # Configurar la zona horaria de Bolivia (UTC-4)
+            tz_bolivia = pytz.timezone('America/La_Paz')
+            ahora = datetime.now(tz_bolivia)  # Obtener la hora exacta de Bolivia
+            
+            fecha = ahora.date()
+            hora = ahora.time()
+            #ahora = datetime.now().date()
+            estudiante = next((est for est in guardar_estudiantes_en_diccionario().values() if est['nombre'] == name), None)
+            materia = guardar_materias_en_diccionario().get(id_materia)
 
             if estudiante and materia:
                 id_estudiante = estudiante['id_estudiante']
-                curso = estudiante['curso']
                 id_materia_seleccionada = materia['id_materia']
 
-                if not verificar_asistencia_existente(id_estudiante, id_curso, id_materia_seleccionada, ahora):
+                if not verificar_asistencia_existente(id_estudiante, id_curso, id_materia_seleccionada, fecha):
                     guardar_asistencia(id_estudiante, id_curso, id_materia_seleccionada)
-                    asistencia_registrada[name] = ahora
+                    asistencia_registrada[name] = fecha
 
-        # Dibujar el rectángulo y el nombre en la imagen
+        # Dibujar el rectángulo en el rostro detectado
         cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+
+        # Escribir el nombre en la imagen
         cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
 
     return asistencia_registrada, frame  # Devolver el frame modificado
+
 
 
 
