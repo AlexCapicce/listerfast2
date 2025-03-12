@@ -37,7 +37,7 @@ from flask import send_file, request
 from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 ################
-import torch
+
 
 # Detectar si hay GPU disponible
 USE_CNN = torch.cuda.is_available()
