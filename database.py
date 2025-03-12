@@ -208,11 +208,13 @@ def guardar_asistencia(id_estudiante, id_curso, materia):
     #ahora = datetime.now()
 
     # Configurar la zona horaria de Bolivia (UTC-4)
-    tz_bolivia = pytz.timezone('America/La_Paz')
+    '''tz_bolivia = pytz.timezone('America/La_Paz')
     ahora = datetime.now(tz_bolivia)  # Obtener la hora exacta de Bolivia
     
     fecha = ahora.date()
-    hora = ahora.time()
+    hora = ahora.time()'''
+    fecha_actual = datetime.now().strftime("%Y-%m-%d")  # Solo la fecha sin la hora
+    hora_actual = datetime.now().strftime("%H:%M:%S")
      
 
     '''if estudiantes_diccionario:
@@ -224,18 +226,20 @@ def guardar_asistencia(id_estudiante, id_curso, materia):
         consulta = "INSERT INTO registro(estudiante, curso, materia, fecha, hora, estado) VALUES (%s, %s, %s,%s,%s,%s)"'''
     
     try:
+                
+        # Si no existe, guardar el registro
         consulta = """
         INSERT INTO registro (estudiante, curso, materia, fecha, hora, estado)
         VALUES (%s, %s, %s, %s, %s, %s)
         """
-        cursor.execute(consulta, (id_estudiante, id_curso , materia, fecha, hora, "Asistido"))
+        cursor.execute(consulta, (id_estudiante, id_curso, materia, fecha_actual, hora_actual, "Asistido"))
         connection.commit()
-        print(f"Registro guardado:")
+        print(f"✅ Registro guardado para estudiante {id_estudiante} el {fecha_actual} a las {hora_actual}")
+
     except Exception as e:
-        print(f"Error al guardar el registro: {e}")
+        print(f"❌ Error al guardar el registro: {e}")
+
     finally:
         cursor.close()
         connection.close()
-
-            #BD de estudiantes'''
 

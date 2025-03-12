@@ -37,7 +37,10 @@ from flask import send_file, request
 from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 ################
+import torch
 
+# Detectar si hay GPU disponible
+USE_CNN = torch.cuda.is_available()
 app = Flask(__name__)
 app.secret_key = "clave_secreta"
 
@@ -581,13 +584,92 @@ def control_asistencia(curso_id, materia_id):
     return render_template('control_asistencia.html', curso=curso_id, materia=materia, estudiantes=estudiantes)'''
 
 ############# PARA VIDEO DE CAMARA DE MOVIL #################
+
+# Almacenar últimos estudiantes reconocidos para evitar múltiples registros
+
+
+# Diccionario para evitar registros repetidos en menos de 3 segundos
+
+
+
+# Cargar datos de estudiantes y materias una vez
+estudiantes_diccionario = guardar_estudiantes_en_diccionario()
+materias_diccionario = guardar_materias_en_diccionario()
+
+def procesar_frame(frame, id_materia, id_curso):
+    """Procesa un frame, detecta rostros y registra asistencia correctamente."""
+    global ultimos_registrados
+
+    # Convertir frame a RGB
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # Detectar rostros y codificaciones
+    face_locations = face_recognition.face_locations(rgb_frame, model="hog")
+    face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
+    if not face_encodings:
+        return {}, frame  
+
+    asistencia_registrada = {}
+    tiempo_actual = time.time()
+
+    for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+        # Comparar con los rostros conocidos
+        face_distances = face_recognition.face_distance(np.array(known_face_encodings), face_encoding)
+        mejor_coincidencia = np.argmin(face_distances)
+
+        if face_distances[mejor_coincidencia] < 0.5:
+            name = known_face_names[mejor_coincidencia]
+        else:
+            name = "Desconocido"
+
+        print(f"🔍 Persona detectada: {name}")
+
+        # Dibujar rectángulo y nombre en el frame
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+        cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+
+        if name == "Desconocido":
+            continue  # No registrar asistencia de desconocidos
+
+        # 🔥 **Corregimos la búsqueda del estudiante** 🔥
+        estudiante = None
+        for est in estudiantes_diccionario.values():
+            if est['nombre'].strip().lower() == name.strip().lower():
+                estudiante = est
+                break
+
+        if not estudiante:
+            print(f"❌ Estudiante '{name}' no encontrado en la base de datos.")
+            continue
+
+        # 🔥 **También corregimos la búsqueda de la materia**
+        materia = materias_diccionario.get(id_materia)  # Convertimos id_materia a string por si hay problemas de clave
+
+        if not materia:
+            print(f"❌ Materia con ID {id_materia} no encontrada.")
+            continue
+
+        id_estudiante = estudiante['id_estudiante']
+        id_materia_seleccionada = materia['id_materia']
+
+        # Registrar asistencia SIEMPRE
+        fecha_actual = datetime.now(pytz.timezone('America/La_Paz')).date()
+        print(f"✅ Registrando asistencia para {name}.")
+        guardar_asistencia(id_estudiante, id_curso, id_materia_seleccionada)
+        asistencia_registrada[name] = fecha_actual
+
+    return asistencia_registrada, frame
+
+
+
 @app.route('/upload_frame', methods=['POST'])
 def upload_frame():
-    """Recibe un frame del móvil y procesa el reconocimiento facial."""
+    """Recibe un frame, hace reconocimiento facial y devuelve la imagen procesada."""
     try:
         id_materia = request.args.get('id_materia', type=int)
         id_curso = request.args.get('id_curso', type=int)
-        
+
         if 'frame' not in request.files:
             return jsonify({"mensaje": "No se recibió imagen"}), 400
 
@@ -595,82 +677,17 @@ def upload_frame():
         npimg = np.frombuffer(frame, np.uint8)
         frame = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
 
-        # Lar alam la función de reconocimiento facial
-         # Procesar la imagen
-        #resultado = procesar_frame(frame, id_materia, id_curso)
-        # Procesar el frame (detectar rostros y registrar asistencia)
+        # Procesar el frame
         asistencia_registrada, frame_procesado = procesar_frame(frame, id_materia, id_curso)
 
-        # Codificar la imagen procesada a base64 para enviarla al frontend
         _, buffer = cv2.imencode('.jpg', frame_procesado)
         imagen_base64 = base64.b64encode(buffer).decode('utf-8')
 
-        return jsonify({"mensaje": "Frame procesado", "asistencia": asistencia_registrada, "imagen": imagen_base64})
+        return jsonify({"mensaje": "Frame procesado", "imagen": imagen_base64, "asistencia": asistencia_registrada})
 
     except Exception as e:
+        print(f"❌ Error: {str(e)}")
         return jsonify({"mensaje": f"Error: {str(e)}"}), 500
-############# FIN - PARA VIDEO DE CAMARA DE MOVIL #################
-import cv2
-import face_recognition
-from datetime import datetime
-
-def procesar_frame(frame, id_materia, id_curso):
-    """Procesa un frame para hacer reconocimiento facial y dibujar rectángulos en los rostros detectados."""
-    
-    # Convertir el frame a RGB (face_recognition trabaja mejor con RGB)
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    # Detectar los rostros en la imagen
-    face_locations = face_recognition.face_locations(rgb_frame, model="hog")
-
-    # Si no se detectan rostros, imprimir un mensaje y devolver el frame sin modificar
-    if not face_locations:
-        print("No se detectaron rostros en el frame.")
-        return {}, frame
-
-    # Obtener los encodings de los rostros detectados
-    face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
-
-    if not face_encodings:
-        print("Se detectaron rostros, pero no se pudieron codificar.")
-        return {}, frame
-
-    asistencia_registrada = {}
-
-    for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
-        matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-        name = "Desconocido"
-
-        if True in matches:
-            first_match_index = matches.index(True)
-            name = known_face_names[first_match_index]
-            # Configurar la zona horaria de Bolivia (UTC-4)
-            tz_bolivia = pytz.timezone('America/La_Paz')
-            ahora = datetime.now(tz_bolivia)  # Obtener la hora exacta de Bolivia
-            
-            fecha = ahora.date()
-            hora = ahora.time()
-            #ahora = datetime.now().date()
-            estudiante = next((est for est in guardar_estudiantes_en_diccionario().values() if est['nombre'] == name), None)
-            materia = guardar_materias_en_diccionario().get(id_materia)
-
-            if estudiante and materia:
-                id_estudiante = estudiante['id_estudiante']
-                id_materia_seleccionada = materia['id_materia']
-
-                if not verificar_asistencia_existente(id_estudiante, id_curso, id_materia_seleccionada, fecha):
-                    guardar_asistencia(id_estudiante, id_curso, id_materia_seleccionada)
-                    asistencia_registrada[name] = fecha
-
-        # Dibujar el rectángulo en el rostro detectado
-        cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-
-        # Escribir el nombre en la imagen
-        cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
-
-    return asistencia_registrada, frame  # Devolver el frame modificado
-
-
 
 
 @app.route('/video_feed')
@@ -863,18 +880,27 @@ def verificar_asistencia_existente(id_estudiante, curso, materia, fecha):
     conexion = conectar_bd()
     cursor = conexion.cursor()
 
-    consulta = """
-        SELECT COUNT(*) 
-        FROM registro 
-        WHERE estudiante = %s AND curso = %s AND materia = %s AND fecha = %s
-    """
-    cursor.execute(consulta, (id_estudiante, curso, materia, fecha))
-    resultado = cursor.fetchone()
+    try:
+        consulta = """
+            SELECT COUNT(*) 
+            FROM registro 
+            WHERE estudiante = %s AND curso = %s AND materia = %s AND fecha = %s
+        """
+        cursor.execute(consulta, (id_estudiante, curso, materia, fecha))
+        resultado = cursor.fetchone()
+        if resultado[0] > 0:
+            print(f"⚠ Asistencia ya registrada para estudiante {id_estudiante} en el curso {curso} y materia {materia} el {fecha}")
+        
+        return resultado[0] > 0  # Si COUNT(*) > 0, ya existe el registro.
 
-    cursor.close()
-    conexion.close()
+    except Exception as e:
+        print(f"❌ Error al verificar asistencia: {e}")
+        return False
 
-    return resultado[0] > 0
+    finally:
+        cursor.close()
+        conexion.close()
+
 
 ######################################## CODIGO PARA DOCENTE . funciones ################
 # Ojo con esto, solo es para probar
@@ -1624,8 +1650,8 @@ def agregar_estudiante():
                     cursor.execute(consulta, (ci, nombre, curso, filename, id_usuario))
                     conexion.commit()
                     
-                    flash("Estudiante agregado exitosamente.", "success")
-                    print("Estudiante agregado exitosamente.", "success")
+                    #flash("Estudiante agregado exitosamente.", "success")
+                    #print("Estudiante agregado exitosamente.", "success")
                 else:
                     flash("No se detectó un rostro en la fotografía. Intenta con otra imagen.", "danger")
                     os.remove(filepath)
@@ -1633,7 +1659,7 @@ def agregar_estudiante():
                 print(f"Datos a insertar: CI={ci}, Nombre={nombre}, Curso={curso}, Email={id_usuario}, Foto={filename}")
 
             except Exception as e:
-                flash(f"Error al procesar la fotografía: {e}", "danger")
+                #flash(f"Error al procesar la fotografía: {e}", "danger")
                 os.remove(filepath)
                 print(f"Datos a insertar: CI={ci}, Nombre={nombre}, Curso={curso}, Email={id_usuario}, Foto={filename}")
             finally:
@@ -1645,7 +1671,7 @@ def agregar_estudiante():
         else:
             flash("Archivo no permitido. Sube una imagen en formato PNG, JPG o JPEG.", "danger")
 
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard_docente'))
 
     return render_template('agregar_estudiante.html', cursos=cursos, padres=padres)
 

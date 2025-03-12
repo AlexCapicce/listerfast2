@@ -22,8 +22,12 @@
             <div class="text-center">
                 <h3 class="mt-4">Reconocimiento Facial en Tiempo Real</h3>
                 <!--<img id="videoStream" src="" class="img-fluid border border-success rounded" alt="Video en vivo">-->
+                <!--<video id="videoStream" autoplay playsinline class="img-fluid border border-success rounded"></video>
+                <canvas id="canvas" style="display: none;"></canvas>-->
+                <!--<video id="videoStream" autoplay playsinline class="img-fluid border border-success rounded"></video>
+                <canvas id="canvasOverlay"></canvas>-->
                 <video id="videoStream" autoplay playsinline class="img-fluid border border-success rounded"></video>
-                <canvas id="canvas" style="display: none;"></canvas>
+                <img id="imagenProcesada" class="img-fluid border border-success rounded" style="display: none;">
 
             </div>
 
@@ -66,12 +70,11 @@
             }
         });
     </script>
-    <script>
-document.addEventListener("DOMContentLoaded", function () {
+<script>
+   document.addEventListener("DOMContentLoaded", function () {
     const video = document.getElementById("videoStream");
-    const canvas = document.getElementById("canvas");
-    const context = canvas.getContext("2d");
-    
+    const imagenProcesada = document.getElementById("imagenProcesada");
+
     navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
             video.srcObject = stream;
@@ -80,24 +83,41 @@ document.addEventListener("DOMContentLoaded", function () {
         .catch(error => console.error("Error accediendo a la cámara:", error));
 
     function capturarYEnviarFrame() {
+        const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d");
+
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
+
         canvas.toBlob(blob => {
             const formData = new FormData();
             formData.append("frame", blob, "frame.jpg");
-            
+
             fetch("/upload_frame?id_materia={{ id_materia }}&id_curso={{ id_curso }}", {
                 method: "POST",
                 body: formData
             })
             .then(response => response.json())
-            .then(data => console.log(data))
+            .then(data => {
+                if (data.imagen) {
+                    // Mostrar la imagen procesada en el <img> y ocultar el <video>
+                    imagenProcesada.src = "data:image/jpeg;base64," + data.imagen;
+                    imagenProcesada.style.display = "block";
+                    video.style.display = "none";
+
+                    // Volver al video en vivo después de 1 segundo
+                    setTimeout(() => {
+                        video.style.display = "block";
+                        imagenProcesada.style.display = "none";
+                    }, 1000);
+                }
+            })
             .catch(error => console.error("Error enviando el frame:", error));
         }, "image/jpeg");
     }
 });
+
 </script>
 
 
