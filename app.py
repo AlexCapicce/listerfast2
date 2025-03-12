@@ -40,7 +40,7 @@ from openpyxl.utils import get_column_letter
 
 
 # Detectar si hay GPU disponible
-USE_CNN = torch.cuda.is_available()
+
 app = Flask(__name__)
 app.secret_key = "clave_secreta"
 
