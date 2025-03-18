@@ -6,6 +6,7 @@
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <title>Cuaderno Disciplinario</title>
 </head>
 <body>
@@ -63,30 +64,15 @@
                     <div class="mb-3">
                         <label for="description" class="form-label">Descripción:</label>
                         <select id="description" class="form-control" required>
-                            <option value="Retraso">Retraso</option>
                             <option value="Indisciplina">Indisciplina</option>
-                            <option value="Uso de celular">Uso de celular</option>
+                            <option value="Uso de celular sin permiso">Uso de celular sin permiso</option>
                             <option value="Falta de respeto">Falta de respeto</option>
-
-
-
-Moverse de sitio
-Salirse del aula sin permiso
-No traer material
-Jugar en clase
-Daño de material en aula
-Uso de audífonos
-Falta de respeto a algún compañero
-Interrumpir al profesor o compañeros
-No cumplir con tareas o deberes
-Comer en clase
-Dormir en el aula
-Llegar tarde sin justificación
-Hacer ruidos innecesarios
-Usar lenguaje inapropiado
-No seguir instrucciones del docente
-Copiar en exámenes o tareas
-Tirar basura en el aula
+                            <option value="Salir del aula sin permiso">Salir del aula sin permiso</option>    
+                            <option value="No traer material de trabajo">No traer material de trabajo</option>    
+                            <option value="Daño de material en el aula">Daño de material en el aula</option>    
+                            <option value="Comer en clase">Comer en clase</option> 
+                            <option value="Llegar tarde sin justificacion">Llegar tarde sin justificación</option> 
+                            <option value="Usar lenguaje inapropiado">Usar lenguaje inapropiado</option> 
 
                         </select>
                     </div>

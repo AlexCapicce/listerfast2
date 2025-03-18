@@ -1,29 +1,24 @@
 import cv2
 import face_recognition
 from flask import Flask, Response, render_template, request, redirect, url_for, flash, session, make_response, send_file
-#from database import get_user_credentials
 from database import *
 from notificar_ausencias import *
 from datetime import datetime
 import base64
 import pytz
-#import pickle
 import threading
 from recognition import FaceRecognition
-#from notificar_ausencias import exportar_registro_pdf
 from openpyxl import Workbook
 import os
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash
 from werkzeug.security import generate_password_hash
 import json
-# Librerias para RF 
 from flask import jsonify, Response
 from functools import wraps
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen.canvas import Canvas  # Importación correcta
 from reportlab.pdfgen import canvas
-
 import numpy as np
 import pandas as pd
 from fpdf import FPDF
@@ -61,8 +56,6 @@ def login():
     if request.method == 'POST':
         correo = request.form['correo']
         contrasena = request.form['contrasena']
-        #hash_contrasena = generate_password_hash(contrasena)
-
         # Conectar a la base de datos
         conexion=conectar_bd()
         if not conexion:
@@ -70,9 +63,7 @@ def login():
             return redirect(url_for('login'))
         
         cursor = conexion.cursor(dictionary=True)
-
-        #hash_contrasena = generate_password_hash(contrasena1)
-
+       
        # Consultar el usuario en la base de datos
         cursor.execute("SELECT * FROM usuario WHERE correo = %s", (correo,))
         usuario = cursor.fetchone()
@@ -454,6 +445,7 @@ def control_asistencia_m():
             SELECT id_estudiante, nombre
             FROM estudiante 
             WHERE curso = %s
+            order by estudiante.nombre
         """, (id_curso,))
         estudiantes = cursor.fetchall()
 
@@ -1031,6 +1023,23 @@ def reportes():
 
     return render_template("reportes.html", materias=materias, cursos=cursos)
 
+@app.route("/reportes2")
+def reportes2():
+    """Ruta para mostrar la página de reportes."""
+    conexion = conectar_bd()
+    cursor = conexion.cursor(dictionary=True)
+
+    # Obtener lista de materias y cursos
+    cursor.execute("SELECT id_materia, nombre_materia FROM materia")
+    materias = cursor.fetchall()
+
+    cursor.execute("SELECT id_curso, nombre_curso FROM curso")
+    cursos = cursor.fetchall()
+
+    cursor.close()
+    conexion.close()
+
+    return render_template("reportes2.html", materias=materias, cursos=cursos)
 
 from fpdf import FPDF
 import pandas as pd
@@ -1127,7 +1136,83 @@ def generar_reporte2():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
+################## REPORTE MENSUAL #################
+from datetime import datetime, timedelta
 
+@app.route("/generar_reporte_mensual", methods=["POST"])
+def generar_reporte_mensual():
+    try:
+        materia_id = request.form.get("materia")
+        curso_id = request.form.get("curso")
+        mes = request.form.get("mes")  # Formato: YYYY-MM
+        anio, mes_num = mes.split("-")
+
+        # Determinar el rango de fechas
+        fecha_inicio = f"{anio}-{mes_num}-01"
+        fecha_fin = (datetime.strptime(fecha_inicio, "%Y-%m-%d") + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        fecha_fin = fecha_fin.strftime("%Y-%m-%d")
+
+        conexion = conectar_bd()
+        cursor = conexion.cursor(dictionary=True)
+
+        # Obtener el nombre del curso
+        cursor.execute("SELECT nombre_curso FROM curso WHERE id_curso = %s", (curso_id,))
+        curso = cursor.fetchone()
+
+        # Obtener el nombre de la materia
+        cursor.execute("SELECT nombre_materia FROM materia WHERE id_materia = %s", (materia_id,))
+        materia = cursor.fetchone()
+
+        # Obtener la lista de estudiantes del curso
+        cursor.execute("SELECT id_estudiante, nombre FROM estudiante WHERE curso = %s ORDER BY nombre", (curso_id,))
+        estudiantes = cursor.fetchall()
+
+        # Obtener la asistencia del mes seleccionado
+        cursor.execute("""
+            SELECT 
+                r.estudiante, r.fecha, IF(r.estado IS NOT NULL, 'P', 'F') AS estado
+            FROM registro r
+            WHERE r.materia = %s AND r.fecha BETWEEN %s AND %s
+        """, (materia_id, fecha_inicio, fecha_fin))
+        registros = cursor.fetchall()
+
+        # Procesar datos en formato de tabla
+        fechas = []
+        asistencias = {}
+
+        for registro in registros:
+            if registro["fecha"] not in fechas:
+                fechas.append(registro["fecha"])
+
+            if registro["estudiante"] not in asistencias:
+                asistencias[registro["estudiante"]] = {}
+
+            asistencias[registro["estudiante"]][registro["fecha"]] = registro["estado"]
+
+        fechas.sort()  # Ordenar fechas
+
+        for estudiante in estudiantes:
+            estudiante["asistencias"] = [asistencias.get(estudiante["id_estudiante"], {}).get(fecha, 'F') for fecha in fechas]
+            estudiante["total_presente"] = estudiante["asistencias"].count('P')
+            estudiante["total_faltas"] = estudiante["asistencias"].count('F')
+
+        cursor.close()
+        conexion.close()
+
+        return render_template(
+            "reporte_resultado_mensual.html",
+            estudiantes=estudiantes,
+            fechas=fechas,
+            nombre_curso=curso["nombre_curso"] if curso else "Desconocido",
+            nombre_materia=materia["nombre_materia"] if materia else "Desconocido",
+            mes=mes
+        )
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+
+##################### FIN REPORTE MENSUAL ###############
 import tempfile
 
 from flask import send_file, jsonify
@@ -1269,6 +1354,156 @@ def descargar_excel1():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
+########## DESCARGAR PDF REPORTE MENSUAL ############
+from flask import Response
+from reportlab.lib.pagesizes import landscape, letter
+from reportlab.pdfgen import canvas
+
+@app.route("/descargar_pdf5")
+def descargar_pdf5():
+    curso_id = request.args.get("curso_id")
+    materia_id = request.args.get("materia_id")
+    mes = request.args.get("mes")
+
+    # Conectar a la base de datos
+    conexion = conectar_bd()
+    cursor = conexion.cursor(dictionary=True)
+
+    # Obtener nombres de curso y materia
+    cursor.execute("SELECT nombre_curso FROM curso WHERE id_curso = %s", (curso_id,))
+    curso = cursor.fetchone()
+    nombre_curso = curso["nombre_curso"] if curso else "No especificado"
+
+    cursor.execute("SELECT nombre_materia FROM materia WHERE id_materia = %s", (materia_id,))
+    materia = cursor.fetchone()
+    nombre_materia = materia["nombre_materia"] if materia else "No especificado"
+
+    # Obtener lista de estudiantes
+    cursor.execute("SELECT id_estudiante, nombre FROM estudiante WHERE curso = %s ORDER BY nombre", (curso_id,))
+    estudiantes = cursor.fetchall()
+
+    # Obtener registros de asistencia
+    cursor.execute("""
+        SELECT r.estudiante, r.fecha, IF(r.estado IS NOT NULL, 'P', 'F') AS estado
+        FROM registro r
+        WHERE r.materia = %s AND DATE_FORMAT(r.fecha, '%%Y-%%m') = %s
+    """, (materia_id, mes))
+    registros = cursor.fetchall()
+
+    cursor.close()
+    conexion.close()
+
+    # Procesar datos
+    fechas = sorted(set(r["fecha"] for r in registros))
+    asistencias = {e["id_estudiante"]: {f: "F" for f in fechas} for e in estudiantes}
+
+    for r in registros:
+        asistencias[r["estudiante"]][r["fecha"]] = r["estado"]
+
+    # Crear PDF
+    response = Response(content_type="application/pdf")
+    response.headers["Content-Disposition"] = f"inline; filename=reporte_{curso_id}_{materia_id}_{mes}.pdf"
+
+    pdf = canvas.Canvas(response.stream, pagesize=landscape(letter))
+    pdf.setFont("Helvetica", 12)
+
+    # Encabezado
+    pdf.drawString(50, 550, f"📚 Curso: {nombre_curso}")
+    pdf.drawString(50, 530, f"📖 Materia: {nombre_materia}")
+    pdf.drawString(50, 510, f"📅 Mes: {mes}")
+
+    y = 480
+    pdf.drawString(50, y, "Estudiante")
+    for i, fecha in enumerate(fechas):
+        pdf.drawString(150 + (i * 50), y, fecha)
+
+    y -= 20
+    for estudiante in estudiantes:
+        pdf.drawString(50, y, estudiante["nombre"])
+        for i, fecha in enumerate(fechas):
+            pdf.drawString(150 + (i * 50), y, asistencias[estudiante["id_estudiante"]].get(fecha, "F"))
+        y -= 20
+
+    pdf.save()
+    return response
+
+########## FIN DE DESCARGAR PDF REPORTE MENSUAL ######
+
+########### DESCARGAR  EN EXCEL DE REPORTE EMENSUAL ######
+import openpyxl
+from io import BytesIO
+from flask import send_file
+
+@app.route("/descargar_excel5")
+def descargar_excel5():
+    curso_id = request.args.get("curso_id")
+    materia_id = request.args.get("materia_id")
+    mes = request.args.get("mes")
+
+    # Conectar a la base de datos
+    conexion = conectar_bd()
+    cursor = conexion.cursor(dictionary=True)
+
+    # Obtener nombres de curso y materia
+    cursor.execute("SELECT nombre_curso FROM curso WHERE id_curso = %s", (curso_id,))
+    curso = cursor.fetchone()
+    nombre_curso = curso["nombre_curso"] if curso else "No especificado"
+
+    cursor.execute("SELECT nombre_materia FROM materia WHERE id_materia = %s", (materia_id,))
+    materia = cursor.fetchone()
+    nombre_materia = materia["nombre_materia"] if materia else "No especificado"
+
+    # Obtener lista de estudiantes
+    cursor.execute("SELECT id_estudiante, nombre FROM estudiante WHERE curso = %s ORDER BY nombre", (curso_id,))
+    estudiantes = cursor.fetchall()
+
+    # Obtener registros de asistencia
+    cursor.execute("""
+        SELECT r.estudiante, r.fecha, IF(r.estado IS NOT NULL, 'P', 'F') AS estado
+        FROM registro r
+        WHERE r.materia = %s AND DATE_FORMAT(r.fecha, '%%Y-%%m') = %s
+    """, (materia_id, mes))
+    registros = cursor.fetchall()
+
+    cursor.close()
+    conexion.close()
+
+    # Procesar datos
+    fechas = sorted(set(r["fecha"] for r in registros))
+    asistencias = {e["id_estudiante"]: {f: "F" for f in fechas} for e in estudiantes}
+
+    for r in registros:
+        asistencias[r["estudiante"]][r["fecha"]] = r["estado"]
+
+    # Crear el archivo Excel
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Reporte de Asistencia"
+
+    # Encabezados
+    ws.append(["📚 Curso:", nombre_curso])
+    ws.append(["📖 Materia:", nombre_materia])
+    ws.append(["📅 Mes:", mes])
+    ws.append([])  # Espacio en blanco
+
+    headers = ["Estudiante"] + fechas + ["✔ Asistencias", "❌ Faltas"]
+    ws.append(headers)
+
+    for estudiante in estudiantes:
+        asistencias_list = [asistencias[estudiante["id_estudiante"]].get(fecha, "F") for fecha in fechas]
+        total_presente = asistencias_list.count("P")
+        total_faltas = asistencias_list.count("F")
+
+        ws.append([estudiante["nombre"]] + asistencias_list + [total_presente, total_faltas])
+
+    # Guardar en memoria y enviar el archivo
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(output, download_name=f"reporte_{curso_id}_{materia_id}_{mes}.xlsx", as_attachment=True)
+
+############ FIN DE DESCARGAR EXCEL MENSUAL #######
 
 
     
@@ -1758,8 +1993,8 @@ def agregar_usuario():
             )
         conexion.commit() 
                 
-        flash("Usuario agregado con éxito.", "success")
-        return redirect(url_for('dashboard'))  
+        #flash("Usuario agregado con éxito.", "success")
+        return redirect(url_for('dashboard_admin'))  
                     
 
      # Obtener las materias y roles
@@ -1869,7 +2104,7 @@ def agregar_curso():
                 cursor.execute("INSERT INTO curso_materia (curso, materia) VALUES (%s, %s)", (id_curso, id_materia))
             conexion.commit()
 
-            flash("Curso agregado con éxito.", "success")
+            #flash("Curso agregado con éxito.", "success")
         except Exception as e:
             flash(f"Error al agregar el curso: {str(e)}", "danger")
         finally:
@@ -2112,6 +2347,7 @@ def reporte_asistencia(id_estudiante):
 @app.route('/cuaderno_disciplinario')
 def cuaderno_disciplinario():
     return render_template('cuaderno_disciplinario.html')
+
 
 @app.route('/buscar_estudiante')
 def buscar_estudiante():

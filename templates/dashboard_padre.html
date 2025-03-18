@@ -8,6 +8,7 @@
     
     <title>Dashboard - Padre</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styleP.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body class="bg-light">
 
@@ -32,6 +33,12 @@
     </nav>
 
     <!-- Contenido principal -->
+    <div class="mt-4 text-center">
+        <a href="#" id="cuadernoDisciplinarioBtn" class="btn btn-warning">
+            📖 Cuaderno Disciplinario
+        </a>
+    </div>
+    
     <div class="container mt-4">
         <h2 class="text-center text-primary">Panel de Control - Padre de Familia</h2>
 
@@ -130,6 +137,18 @@
             });
         });
     </script>
+<script>
+    document.getElementById("cuadernoDisciplinarioBtn").addEventListener("click", function(event) {
+        event.preventDefault();
+        let hijoId = document.getElementById("hijo").value;
 
+        if (!hijoId) {
+            alert("Seleccione un hijo para ver su cuaderno disciplinario.");
+            return;
+        }
+
+        window.location.href = `/cuaderno_disciplinario?hijo=${hijoId}`;
+    });
+</script>
 </body>
 </html>
